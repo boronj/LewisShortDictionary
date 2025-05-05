@@ -118,7 +118,7 @@ function loadDictionaries(entry){
       }
     }
 
-    //Sort fEntries by Levenshtein distance and add first X to entries
+    //Sort fEntries by distance and add first X to entries
     const PAGE_INDEX_NUM = 5;
     fEntries = fEntries.sort(c);
     if (fEntries.length < PAGE_INDEX_NUM){
@@ -247,7 +247,7 @@ function dist(word1, word2){
   }
 }
 
-//Key to sort DictionaryEntry by Levenshtein distance
+//Key to sort DictionaryEntry by distance
 //(basis from https://stackoverflow.com/a/8837505)
 function c(a,b){
   var x = JSON.parse(a)['distance']; var y = JSON.parse(b)['distance'];
