@@ -118,9 +118,20 @@ function loadDictionaries(entry){
       }
     }
 
+    //JSONify entries
+    for (var i = 0; i < fEntries.length;i++){
+      fEntries[i] = JSON.parse(fEntries[i]);
+    }
+
     //Sort fEntries by distance and add first X to entries
     const PAGE_INDEX_NUM = 5;
-    fEntries = fEntries.sort(c);
+    fEntries = fEntries.sort((a, b) => {
+        if (a['distance'] == 0){
+            return -1;
+        } else if (b['distance'] == 0){
+            return 1;
+        } return a['distance'] - b['distance'];
+    });
     if (fEntries.length < PAGE_INDEX_NUM){
       entries.push(fEntries);
     } else {
@@ -131,14 +142,9 @@ function loadDictionaries(entry){
 
   }
 
-  //Convert entries
-  for (var i = 0; i < entries[0].length;i++){
-    entries[0][i] = JSON.parse(entries[0][i]);
-  }
-
   //Sort entries again by distance & return entries
   //(https://stackoverflow.com/a/28311228)
-  return entries.sort(function(a,b){return a['distance']-b['distance'];});
+  return entries.sort((a, b) =>{return a['distance']-b['distance']});
 }
 
 function loadPreviews(){
