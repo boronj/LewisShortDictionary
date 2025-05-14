@@ -252,14 +252,3 @@ function dist(word1, word2){
     return iter(word1, word2);
   }
 }
-
-//Key to sort DictionaryEntry by distance
-//(basis from https://stackoverflow.com/a/8837505)
-function c(a,b){
-  var x = JSON.parse(a)['distance']; var y = JSON.parse(b)['distance'];
-  if (x < y){
-    return -1;
-  } else if (x > y){
-    return 1
-  } return 0;
-}
