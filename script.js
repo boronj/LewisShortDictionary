@@ -27,19 +27,19 @@ document.addEventListener("DOMContentLoaded", function(e) {
   /*Query search when enter key is pressed
   (& if user is currently focused on search bar)*/
   document.addEventListener("keyup", function(e){
+    var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
     if (document.activeElement == document.getElementById("searchBar")){
       if (e.key=="Enter"){ //Search query when enter is pressed
         timeout = null; //Destroy timeout to prevent more resources from being used
         search();
-      } else if ((e.keyCode > 47 && e.keyCode < 58) || e.keyCode > 95 || e.keyCode == 8){ //Load preview when new alphanumeric/special char/backspace is typed
-        timeout = setTimeout(loadPreviews(), 500);
+      } else if (chars.indexOf(e.key)!=-1){ //Load preview when new alphanumeric/special char/backspace is typed
+        timeout = setTimeout(loadPreviews(), 1000);
       }
     }
   });
 
   document.addEventListener("keydown", function(e){
     if (document.activeElement == document.getElementById("searchBar")){
-      console.log("key down");
       clearTimeout(timeout);
     }
 
@@ -144,12 +144,29 @@ function loadDictionaries(entry){
 
   //Sort entries again by distance & return entries
   //(https://stackoverflow.com/a/28311228)
-  return entries.sort((a, b) =>{return a['distance']-b['distance']});
+  return entries.sort((a, b) => {
+        if (a['distance'] == 0){
+            return -1;
+        } else if (b['distance'] == 0){
+            return 1;
+        } return a['distance'] - b['distance'];
+    });
 }
 
 function loadPreviews(){
-  console.log("b");
-  return;
+  var entries = loadDictionaries(document.getElementById("searchBar").value);
+  console.log(entries);
+  var table = "<table class = 'searchQueryTable'>";
+  entries.forEach((entry)=>{
+    table += "\t<tr>\n\t\t<td class = 'entry'>\n\t\t\t<tr>";
+    if (entry['distance']==0){
+      table += `<b>${entry['translit']}</b><br><i>${entry['pathName']}</i><br><br><hr><br><br>${constructDef(entry['definition']).substring(0,100)}...</tr></td>`;
+    } else {
+      table += `${entry['translit']}<br><i>${entry['pathName']}</i><br><br><hr><br><br>${constructDef(entry['definition']).substring(0,100)}...</tr></td>`;
+    }
+  });
+  table += "</table>";
+  document.getElementById("possibleQueries").innerHTML = table;
 }
 
 function search(){
@@ -251,4 +268,15 @@ function dist(word1, word2){
   catch{
     return iter(word1, word2);
   }
+}
+
+//Construct definition string, given 2-length array of main notes & senses.
+
+function constructDef(definition){
+  var defString = "";
+  //If main notes is empty, go to senses (combining each section of list, using typeof() to distinguish between String & Array)
+  //Else if senses is empty, go to main notes
+  //If both are empty, return ""
+  //If both are full, combine main notes & senses in same fashion as above
+  return defString;
 }

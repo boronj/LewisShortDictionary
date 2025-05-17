@@ -15,3 +15,23 @@ body{
 /*Entry previews should be above everything elser (z-index:1;)
   and should be positioned below search bar, with black border
   between each entry (border: 2px black none solid solid solid;)*/
+
+.searchWrapper {
+  width:16em;
+}
+
+input{
+  width:100%;
+  position:absolute;
+  top:95%;
+  left:0%;
+}
+
+/*Overall div for previews*/
+#possibleQueries{
+  width:100%;
+  position:relative;
+  top:100%;
+  left:0%;
+  z-index:1;
+}
