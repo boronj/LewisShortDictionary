@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
   /*Query search when enter key is pressed
   (& if user is currently focused on search bar)*/
   document.addEventListener("keyup", function(e){
-    var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+    var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
     if (document.activeElement == document.getElementById("searchBar")){
       if (e.key=="Enter"){ //Search query when enter is pressed
         timeout = null; //Destroy timeout to prevent more resources from being used
