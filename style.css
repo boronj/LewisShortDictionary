@@ -17,7 +17,7 @@ body{
   between each entry (border: 2px black none solid solid solid;)*/
 
 .searchWrapper {
-  width:16em;
+  width:24em;
 }
 
 input{
@@ -31,7 +31,20 @@ input{
 #possibleQueries{
   width:100%;
   position:relative;
-  top:100%;
+  top:0%;
   left:0%;
   z-index:1;
+}
+
+.searchBar{
+  z-index:2;
+}
+
+.searchQueryTable{
+  width:100%;
+  text-align:left;
+}
+
+table, th, td {
+  border: 1px black solid;
 }

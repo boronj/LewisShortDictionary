@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
       if (e.key=="Enter"){ //Search query when enter is pressed
         timeout = null; //Destroy timeout to prevent more resources from being used
         search();
-      } else if (chars.indexOf(e.key)!=-1){ //Load preview when new alphanumeric/special char/backspace is typed
+      } else if (chars.indexOf(e.key)!=-1 || e.keyCode == 8){ //Load preview when new alphanumeric/special char/backspace is typed
         timeout = setTimeout(loadPreviews(), 1000);
       }
     }
@@ -93,6 +93,7 @@ function loadDictionaries(entry){
       var k = dictionarySection[x];
       var word = k['key'];
       //Calculate distance between entry and each dictionary key
+
       var distance = dist(entry, word);
       //Add to entries list
       //(to-do: change items for DictionaryEntry when more than
@@ -154,16 +155,35 @@ function loadDictionaries(entry){
 }
 
 function loadPreviews(){
-  var entries = loadDictionaries(document.getElementById("searchBar").value);
-  console.log(entries);
+  var input = document.getElementById("searchBar").value;
+  if (input.length == 0){
+    document.getElementById("possibleQueries").innerHTML = "";
+    return;
+  } 
+  var entries = loadDictionaries(input);
   var table = "<table class = 'searchQueryTable'>";
-  entries.forEach((entry)=>{
-    table += "\t<tr>\n\t\t<td class = 'entry'>\n\t\t\t<tr>";
-    if (entry['distance']==0){
-      table += `<b>${entry['translit']}</b><br><i>${entry['pathName']}</i><br><br><hr><br><br>${constructDef(entry['definition']).substring(0,100)}...</tr></td>`;
-    } else {
-      table += `${entry['translit']}<br><i>${entry['pathName']}</i><br><br><hr><br><br>${constructDef(entry['definition']).substring(0,100)}...</tr></td>`;
+  entries[0].forEach((entry)=>{
+    console.log("-----");
+    console.log(entry);
+    table += "<tr class = 'entry'><td>";
+    var punctIndex = entry['definition'][0].length;
+    if (Object.keys(entry).indexOf('translit')==-1){      
+      [",", "(", "-", " ", "="].forEach((punctuationMark)=>{
+        var index = entry['definition'][0].indexOf(punctuationMark);
+        if (index < punctIndex && index != -1){
+          punctIndex = index;
+        }
+      });
+      entry['translit'] = entry['definition'][0].substring(0, punctIndex);
     }
+    var tableEntry;
+    console.log(entry);
+    if (entry['distance']==0){
+      tableEntry = `<b>${entry['translit']}</b> (<i><a href = '${entry['URL']}' target='_blank'>${entry['pathName']}</a></i>)<i><span = "text-align:right;">distance ${entry['distance']}</span></i><br><hr>${constructDef(entry['definition']).substring(0,100)}...</td></tr>`;
+    } else {
+      tableEntry = `${entry['translit']} (<i><a href = '${entry['URL']}' target='_blank'>${entry['pathName']}</a></i>)<i><span = "text-align:right;">distance ${entry['distance']}</span></i><br><hr>${constructDef(entry['definition']).substring(0,100)}...</td></tr>`;
+    }
+    table += `${tableEntry}</hr>`
   });
   table += "</table>";
   document.getElementById("possibleQueries").innerHTML = table;
@@ -234,7 +254,7 @@ function dist(word1, word2){
     //Determine greatest common beginning substring
     //After greatest common beginning substring, determine how many 
     //individual characters are changed
-    for (var i = 0; i < Math.min(word1.length,word2.length); i++){
+    for (var i = 1; i < Math.min(word1.length,word2.length); i++){
       //Greatest common beginning substring
       if (word1.substring(0, i) != word2.substring(0,i) && !matched){
         matched=true;
@@ -256,24 +276,21 @@ function dist(word1, word2){
   word1 = word1.indexOf(",")!=-1 ? word1.substring(0,word1.indexOf(",")) : word1;
   word2 = word2.indexOf(",")!=-1 ? word2.substring(0,word2.indexOf(",")) : word2;
   if (word1 === word2){return 0;}
-  try{
-    if (word1 === word2.substring(0,word1.length)){
+  if (word1 === word2.substring(0,word1.length)){
       return word2.length - word1.length;
     } else if (word2 === word1.substring(0, word2.length)){
       return word1.length - word2.length;
     } else {
       return iter(word1, word2);
     } 
-  }
-  catch{
-    return iter(word1, word2);
-  }
 }
 
 //Construct definition string, given 2-length array of main notes & senses.
 
 function constructDef(definition){
   var defString = "";
+  var mainNotesEmpty = definition[0] == null;
+  var sensesEmpty = definition[1] == null;
   //If main notes is empty, go to senses (combining each section of list, using typeof() to distinguish between String & Array)
   //Else if senses is empty, go to main notes
   //If both are empty, return ""
