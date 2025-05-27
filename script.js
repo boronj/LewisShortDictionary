@@ -21,8 +21,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
     });
     document.getElementById("searchBar").value = document.getElementById("searchBar").value.toLowerCase();
     if (document.activeElement == document.getElementById("searchBar")){
-      console.log(e.key);
-      console.log(e.keyCode);
        //Load preview when new alphanumeric/special char/backspace is typed
        if (chars.indexOf(e.key)!=-1 || e.keyCode == 8){ 
         timeout = setTimeout(loadPreviews(), 1000);
@@ -54,7 +52,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
   }
 */
 function loadDictionaries(entry){
-  console.clear();
   var entries = [];
   //Go through each dictionary in dictionaryLists
   for (const list of Object.keys(dictionaryLists)){
@@ -253,7 +250,6 @@ function constructDef(definition){
       if (typeof(section) == "string"){
         defString += section;
       } else {
-        console.log(section);
         defString += [].concat(...section).join(". ");
       }
     });
@@ -304,6 +300,5 @@ function sortDistance(a, b) {
 function sortGCS(a,b){
   var c = greatestCommonSubstring(entry, a['entry'].normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
   var d = greatestCommonSubstring(entry, b['entry'].normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-  console.log(c);
   return d.length - c.length;
 };
