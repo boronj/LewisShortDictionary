@@ -5,43 +5,37 @@ var dictionaryLists = {
     "file": "ls_{letterUppercase}.json", //Set "file" to be all entries for the letter A
     "abbr": "LS"
   }
-}
-
-/*Page system to use for previews
-  {pageNo: [DictionaryEntry, DictionaryEntry...(5 total)]}
-*/
-var pages = {
-  1:[]
-}
+};
 
 var page = window.location.pathname;
 
-//entry.html will also have a searchBar so no change is needed here to remedy it
+//Add event listeners for key presses on page load
 document.addEventListener("DOMContentLoaded", function(e) {
   var timeout;
-  //If entry.html, find entry and load it up
-  if (page.includes("entry.html")){
-    console.log("entry thing"); //don't forget to acc do this 🙏 
-  }
+  //Set timeout when key is lifted
 
-  /*Query search when enter key is pressed
-  (& if user is currently focused on search bar)*/
   document.addEventListener("keyup", function(e){
     var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+    Array.from("[];'./:\"`~,./<>?-=_+()\\").forEach((punctuation)=>{
+      document.getElementById("searchBar").value = document.getElementById("searchBar").value.replace(punctuation,"");
+    });
+    document.getElementById("searchBar").value = document.getElementById("searchBar").value.toLowerCase();
     if (document.activeElement == document.getElementById("searchBar")){
-      if (e.key=="Enter"){ //Search query when enter is pressed
-        timeout = null; //Destroy timeout to prevent more resources from being used
-        search();
-      } else if (chars.indexOf(e.key)!=-1 || e.keyCode == 8){ //Load preview when new alphanumeric/special char/backspace is typed
+      console.log(e.key);
+      console.log(e.keyCode);
+       //Load preview when new alphanumeric/special char/backspace is typed
+       if (chars.indexOf(e.key)!=-1 || e.keyCode == 8){ 
         timeout = setTimeout(loadPreviews(), 1000);
       }
     }
   });
 
+  //Clear timeout when key is pressed
   document.addEventListener("keydown", function(e){
     if (document.activeElement == document.getElementById("searchBar")){
       clearTimeout(timeout);
     }
+  });
 
 });
 
@@ -53,7 +47,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
   {
     'entry': String, (ie "Aărōn")
     'pathName': String, (ie "LS:Aaron")
-    'declension': int (1-5)
+    'URL': String (i.e 'https://perseus.tufts.edu...')
+    'distance': integer (>= 0)
     'dictionary': String, (ie "Lewis & Short")
     'definition': String (ie "(Aārōn, Prud. Psych. 884),  or...")
   }
@@ -61,17 +56,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
 function loadDictionaries(entry){
   console.clear();
   var entries = [];
-  /*
-    Figure out how to load dictionary files w/o delay, b/c with how much
-    someone might type this function can be called a couple of times
-    to say the least
-  */
+  //Go through each dictionary in dictionaryLists
   for (const list of Object.keys(dictionaryLists)){
     document.getElementById("placeholderText").style.color="";
     document.getElementById("placeholderText").innerHTML = "";
+
+    //Get abbreviation & standardized file path for dictionary
     var abbreviation = dictionaryLists[list]['abbr'];
     var pathName = dictionaryLists[list]['file'];
     var original = pathName;
+
     //If dictionary uses uppercase characters for indexing
     if (pathName.includes("\{letterUppercase\}")){
       pathName = pathName.replace("\{letterUppercase\}", entry.substring(0,1).toUpperCase());
@@ -143,12 +137,13 @@ function loadDictionaries(entry){
         });
         fEntries[i]['translit'] = fEntries[i]['definition'][0].substring(0, punctIndex);
       }
-      //Entry doesn't exist or is Greek for some reason
+      //Entry doesn't exist
       if (Object.keys(fEntries[i]).indexOf("entry") == -1){
         fEntries[i]['entry'] = fEntries[i]['translit'];
         fEntries[i]['distance'] = dist(entry, fEntries[i]['entry']);
 
       } 
+      //Entry contains Greek text
       if ((fEntries[i]["entry"].codePointAt(0) >= 880) && (fEntries[i]["entry"].codePointAt(0) <= 1023)){
         fEntries[i]['entry'] = fEntries[i]['translit'];
         fEntries[i]['distance'] = dist(entry, fEntries[i]['entry']);
@@ -163,21 +158,26 @@ function loadDictionaries(entry){
     } else {
       entries.push(fEntries.slice(0, PAGE_INDEX_NUM));
     }
-    //Restore original path format
+
+    //Restore original path format (somehow its changed?)
     dictionaryLists[list]['file'] = original;
 
   }
 
-  //Sort entries by greatest common substring
+  //Sort entries by greatest common substring & return
   return entries.sort(sortGCS);
 }
 
+//Load table to preview dictionary definitions.
 function loadPreviews(){
   var input = document.getElementById("searchBar").value;
-  if (input.length == 0 || input.replace("[^A-Za-z0-9]","").input>0){
+  //Search bar contains non-alphanumeric chars or is empty
+  if (input.length == 0){
     document.getElementById("possibleQueries").innerHTML = "";
     return;
   } 
+
+  //Add each element to table & put table in HTML
   var entries = loadDictionaries(input);
   var table = "<table class = 'searchQueryTable'>";
   entries[0].forEach((entry)=>{
@@ -195,38 +195,6 @@ function loadPreviews(){
   document.getElementById("possibleQueries").innerHTML = table;
 }
 
-function search(){
-  /*
-    For now, the only dictionary list is that of Lewis & Short
-    (https://github.com/IohannesArnold/lewis-short-json)
-    - others may be added once the general framework is set up
-  */
-  //Get search term & sanitze it
-  //(https://stackoverflow.com/a/57299140)
-  var sanitzedTerm = document.getElementById("searchBar").value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-
-  //Load entries for sanitzed term in list
-  var entries = loadDictionaries(sanitzedTerm.toLowerCase())[0];
-  console.log(entries);
-  if (entries==null){
-    return;
-  }
-  //If present in one list, load up definition
-  if (entries.length == 1){
-    location.pathname = `entry.html?term=${entries[0]['pathName']}`;
-  }
-  //If present in multiple lists, ask user to choose from available entries
-  //(up to 5, page system for anything else)
-  if (entries.length > 1){
-
-  }
-  //If present in no pages, window.alert("This term has not been found in any available dictionaries.");
-  else {
-    //window.alert("This term has not been found in any available dictionaries.");
-  }
-}
-});
-
 //Send HTTP request to get dictionary section.
 function getDictionaryEntry(URL){
   const req = new XMLHttpRequest();
@@ -241,6 +209,7 @@ function getDictionaryEntry(URL){
         var response = req.response;
         parsed = JSON.parse(response);
     } 
+      //Return "404" if 404 status is given
       if (req.status == 404){
         parsed = "404";
       }   
@@ -251,13 +220,16 @@ function getDictionaryEntry(URL){
 }
 
 
-/*Calculate distance between two words*/
+/*Calculate (simplified) edit distance between two words*/
 function dist(word1, word2){
+  //Normalize both words
   word1 = word1.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   word2 = word2.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  //Find GCS, using it as the beginning to find difference between words
   var GCS = greatestCommonSubstring(word1, word2);
   word1 = word1.substring(GCS.length-1);
   word2 = word2.substring(GCS.length-1);
+  //Find # of characters that are the same
   var same = 0;
   for (var i = 0; i < Math.min(word1.length, word2.length); i++){
     if (word1[i] == word2[i]){same++;}
@@ -266,7 +238,6 @@ function dist(word1, word2){
 }
 
 //Construct definition string, given 2-length array of main notes & senses.
-
 function constructDef(definition){
   var defString = "";
   var mainNotesEmpty = definition[0] == null;
@@ -305,7 +276,7 @@ function constructDef(definition){
   });
 
   return defString;
-}
+};
 
 //Find greatest common substring between 2 strings
 function greatestCommonSubstring(string1, string2){
@@ -318,7 +289,7 @@ function greatestCommonSubstring(string1, string2){
     i++;
   }
   return string1.substring(0,i-1);
-}
+};
 
 //Sort two entries of a list by distance
 function sortDistance(a, b) {
@@ -329,9 +300,10 @@ function sortDistance(a, b) {
   } return a['distance'] - b['distance'];
 };
 
+//Sort two entries of a list by greatest common substring
 function sortGCS(a,b){
   var c = greatestCommonSubstring(entry, a['entry'].normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
   var d = greatestCommonSubstring(entry, b['entry'].normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
   console.log(c);
   return d.length - c.length;
-}
+};
