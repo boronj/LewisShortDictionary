@@ -22,7 +22,7 @@ body{
 
 input{
   width:100%;
-  position:absolute;
+  position:relative;
   top:95%;
   left:0%;
 }

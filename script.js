@@ -59,6 +59,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
   }
 */
 function loadDictionaries(entry){
+  console.clear();
   var entries = [];
   /*
     Figure out how to load dictionary files w/o delay, b/c with how much
@@ -95,6 +96,15 @@ function loadDictionaries(entry){
       //Calculate distance between entry and each dictionary key
 
       var distance = dist(entry, word);
+      if (distance == null){
+        if (Object.keys(k).indexOf('title_orthography') != -1){
+          word = k['title_orthography'].toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        } else {
+          word = k['main_notes'].substring(0, k['main_notes'].indexOf(',')).trim();
+        }
+        
+        distance = dist(entry, word);
+      }
       //Add to entries list
       //(to-do: change items for DictionaryEntry when more than
       //1 dictionary is implemented)
@@ -119,20 +129,35 @@ function loadDictionaries(entry){
       }
     }
 
-    //JSONify entries
+    //JSONify entries & make corrections
     for (var i = 0; i < fEntries.length;i++){
       fEntries[i] = JSON.parse(fEntries[i]);
+      var punctIndex = fEntries[i]['definition'][0].length;
+      //Transliteration doesn't exist
+      if (Object.keys(fEntries[i]).indexOf('translit')==-1){      
+        [",", "(", "=", " or "].forEach((punctuationMark)=>{
+          var index = fEntries[i]['definition'][0].indexOf(punctuationMark);
+          if (index < punctIndex && index != -1){
+            punctIndex = index;
+          }
+        });
+        fEntries[i]['translit'] = fEntries[i]['definition'][0].substring(0, punctIndex);
+      }
+      //Entry doesn't exist or is Greek for some reason
+      if (Object.keys(fEntries[i]).indexOf("entry") == -1){
+        fEntries[i]['entry'] = fEntries[i]['translit'];
+        fEntries[i]['distance'] = dist(entry, fEntries[i]['entry']);
+
+      } 
+      if ((fEntries[i]["entry"].codePointAt(0) >= 880) && (fEntries[i]["entry"].codePointAt(0) <= 1023)){
+        fEntries[i]['entry'] = fEntries[i]['translit'];
+        fEntries[i]['distance'] = dist(entry, fEntries[i]['entry']);
+      }
     }
 
     //Sort fEntries by distance and add first X to entries
     const PAGE_INDEX_NUM = 5;
-    fEntries = fEntries.sort((a, b) => {
-        if (a['distance'] == 0){
-            return -1;
-        } else if (b['distance'] == 0){
-            return 1;
-        } return a['distance'] - b['distance'];
-    });
+    fEntries = fEntries.sort(sortDistance);
     if (fEntries.length < PAGE_INDEX_NUM){
       entries.push(fEntries);
     } else {
@@ -143,45 +168,26 @@ function loadDictionaries(entry){
 
   }
 
-  //Sort entries again by distance & return entries
-  //(https://stackoverflow.com/a/28311228)
-  return entries.sort((a, b) => {
-        if (a['distance'] == 0){
-            return -1;
-        } else if (b['distance'] == 0){
-            return 1;
-        } return a['distance'] - b['distance'];
-    });
+  //Sort entries by greatest common substring
+  return entries.sort(sortGCS);
 }
 
 function loadPreviews(){
   var input = document.getElementById("searchBar").value;
-  if (input.length == 0){
+  if (input.length == 0 || input.replace("[^A-Za-z0-9]","").input>0){
     document.getElementById("possibleQueries").innerHTML = "";
     return;
   } 
   var entries = loadDictionaries(input);
   var table = "<table class = 'searchQueryTable'>";
   entries[0].forEach((entry)=>{
-    console.log("-----");
-    console.log(entry);
     table += "<tr class = 'entry'><td>";
-    var punctIndex = entry['definition'][0].length;
-    if (Object.keys(entry).indexOf('translit')==-1){      
-      [",", "(", "-", " ", "="].forEach((punctuationMark)=>{
-        var index = entry['definition'][0].indexOf(punctuationMark);
-        if (index < punctIndex && index != -1){
-          punctIndex = index;
-        }
-      });
-      entry['translit'] = entry['definition'][0].substring(0, punctIndex);
-    }
     var tableEntry;
-    console.log(entry);
+    var definition = constructDef(entry['definition']);
     if (entry['distance']==0){
-      tableEntry = `<b>${entry['translit']}</b> (<i><a href = '${entry['URL']}' target='_blank'>${entry['pathName']}</a></i>)<i><span = "text-align:right;">distance ${entry['distance']}</span></i><br><hr>${constructDef(entry['definition']).substring(0,100)}...</td></tr>`;
+      tableEntry = `<b>${entry['translit']}</b> (${entry['pathName']}) &mdash; <i>distance ${entry['distance']}</i><br><hr>${definition.length < 100 ? definition : (definition.substring(0,100)+"...")}<br><br><a href = "${entry['URL']}" target="_blank">Link to \`${entry['translit']}\`</a></td></tr>`;
     } else {
-      tableEntry = `${entry['translit']} (<i><a href = '${entry['URL']}' target='_blank'>${entry['pathName']}</a></i>)<i><span = "text-align:right;">distance ${entry['distance']}</span></i><br><hr>${constructDef(entry['definition']).substring(0,100)}...</td></tr>`;
+      tableEntry = `${entry['translit']} (${entry['pathName']}) &mdash; <i>distance ${entry['distance']}</i><br><hr>${definition.length < 100 ? definition : (definition.substring(0,100)+"...")}<br><br><a href = "${entry['URL']}" target="_blank">Link to \`${entry['translit']}\`</a></td></tr>`;
     }
     table += `${tableEntry}</hr>`
   });
@@ -247,42 +253,16 @@ function getDictionaryEntry(URL){
 
 /*Calculate distance between two words*/
 function dist(word1, word2){
-
-  function iter(word1, word2){
-    var matched = false;
-    var diff = 0;
-    //Determine greatest common beginning substring
-    //After greatest common beginning substring, determine how many 
-    //individual characters are changed
-    for (var i = 1; i < Math.min(word1.length,word2.length); i++){
-      //Greatest common beginning substring
-      if (word1.substring(0, i) != word2.substring(0,i) && !matched){
-        matched=true;
-      } if (matched){
-          diff = 1;
-          word1 = word1.substring(i+1).split(""); word2 = word2.substring(i+1).split("");
-          //Figure out different characters + extra characters
-          //This for-loop here needs to be worked on, otherwise the algo is fine
-          for (var x = 0; x < Math.min(word1.length, word2.length); x++){
-            if (word1[x]!=word2[x]){diff += 1;}
-          }
-          return diff + Math.abs(word1.length-word2.length) + 1;
-      }
-    }
+  word1 = word1.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  word2 = word2.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  var GCS = greatestCommonSubstring(word1, word2);
+  word1 = word1.substring(GCS.length-1);
+  word2 = word2.substring(GCS.length-1);
+  var same = 0;
+  for (var i = 0; i < Math.min(word1.length, word2.length); i++){
+    if (word1[i] == word2[i]){same++;}
   }
-
-  word1 = word1.toLowerCase();
-  word2 = word2.toLowerCase();
-  word1 = word1.indexOf(",")!=-1 ? word1.substring(0,word1.indexOf(",")) : word1;
-  word2 = word2.indexOf(",")!=-1 ? word2.substring(0,word2.indexOf(",")) : word2;
-  if (word1 === word2){return 0;}
-  if (word1 === word2.substring(0,word1.length)){
-      return word2.length - word1.length;
-    } else if (word2 === word1.substring(0, word2.length)){
-      return word1.length - word2.length;
-    } else {
-      return iter(word1, word2);
-    } 
+  return Math.max(word1.length, word2.length) - same;
 }
 
 //Construct definition string, given 2-length array of main notes & senses.
@@ -291,9 +271,67 @@ function constructDef(definition){
   var defString = "";
   var mainNotesEmpty = definition[0] == null;
   var sensesEmpty = definition[1] == null;
-  //If main notes is empty, go to senses (combining each section of list, using typeof() to distinguish between String & Array)
-  //Else if senses is empty, go to main notes
   //If both are empty, return ""
+  if (mainNotesEmpty && sensesEmpty){
+    return "";
+  } 
+  //If main notes is empty, go to senses (combining each section of list, using typeof() to distinguish between String & Array)
+  else if (mainNotesEmpty){
+    definition[1].forEach((section)=>{
+      defString += ` ${definition[1].indexOf(section)+1}.) `;
+      if (typeof(section) == "string"){
+        defString += section;
+      } else {
+        console.log(section);
+        defString += [].concat(...section).join(". ");
+      }
+    });
+    return defString;
+  }
+  //Else if senses is empty, go to main notes 
+  else if (sensesEmpty){
+    return definition[0];
+  }
   //If both are full, combine main notes & senses in same fashion as above
+  defString += definition[0];
+  definition[1].forEach((section)=>{
+    defString += ` ${definition[1].indexOf(section)+1}.) `;
+    if (typeof(section) == "string"){
+      defString += section;
+    } else {
+
+      defString += [].concat(...section).join(". ");
+    }
+  });
+
   return defString;
+}
+
+//Find greatest common substring between 2 strings
+function greatestCommonSubstring(string1, string2){
+  var i = 1;
+  while (i <= Math.min(string1.length, string2.length)){
+    if (string1.substring(0, i) != string2.substring(0,i)){
+      if (i==1){return "";}
+      return string1.substring(0,i-1);
+    }
+    i++;
+  }
+  return string1.substring(0,i-1);
+}
+
+//Sort two entries of a list by distance
+function sortDistance(a, b) {
+  if (a['distance'] == 0){
+      return -1;
+  } else if (b['distance'] == 0){
+      return 1;
+  } return a['distance'] - b['distance'];
+};
+
+function sortGCS(a,b){
+  var c = greatestCommonSubstring(entry, a['entry'].normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+  var d = greatestCommonSubstring(entry, b['entry'].normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+  console.log(c);
+  return d.length - c.length;
 }
